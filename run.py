@@ -3,6 +3,7 @@ import subprocess
 
 open('a.txt', 'w').close()
 open('b.txt', 'w').close()
+open('vars.txt', 'w').close()
 
 for i in range(20):
     subprocess.run(["python", "combined.py" ])

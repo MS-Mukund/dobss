@@ -5,8 +5,8 @@ import random
 # Multiple LP problems
 
 num_f_types = 1
-l_rew_ubound = 5
-f_rew_ubound = 5    
+l_rew_ubound = 20
+f_rew_ubound = 20    
 
 num_f_act = 2
 num_l_act = 2
@@ -14,11 +14,11 @@ num_l_act = 2
 # Payoff matrices
 # Leader
 R = np.array([ [ random.uniform(0, l_rew_ubound) for _ in range(num_f_act) ] for _ in range(num_l_act) ]) 
-# R = np.array([ [ 2, 4 ], [ 1, 3 ] ])
+# R = np.array([ [ 0.04, 0.16 ], [ 4.79, 1.9 ] ])
 
 # Follower
 C = np.array([ [ random.uniform(0, f_rew_ubound) for _ in range(num_f_act) ] for _ in range(num_l_act) ])
-# C = np.array([ [ 1, 0 ], [ 0, 1 ] ])
+# C = np.array([ [ 4.81, 0.25 ], [ 3.92, 4.57 ] ])
 
 # Probabilities
 Probabs = [ ]
@@ -29,12 +29,13 @@ for j in range(num_f_act):
     mul_lp = p.LpProblem("LP_" + str(j), p.LpMaximize)
     chanc = np.array([ p.LpVariable("Prob_" + str(j) + "_" + str(i), 0, 1, p.LpContinuous ) for i in range(num_l_act) ])
 
+    # objective 
+    mul_lp += p.lpSum( chanc[i]*R[i][j] for i in range(num_l_act) ), "objective_" + str(j)
+
     # constraints
     mul_lp += p.lpSum( chanc[i] for i in range(num_l_act) ) == 1, "Prob_" + str(j) + "_sum"
     for k in range(num_l_act):
-        mul_lp += p.lpSum( chanc[ct]*( C[j][ct] - C[k][ct] ) for ct in range(num_l_act) ) >= 0, "follower_" + str(j) + "_" + str(k)
-
-    mul_lp += p.lpSum( chanc[i]*R[i][j] for i in range(num_l_act) ), "objective_" + str(j)
+        mul_lp += p.lpSum( chanc[ct]*( C[ct][j] ) for ct in range(num_l_act) ) >= p.lpSum( chanc[ct]*( C[ct][k] ) for ct in range(num_l_act) ), "follower_" + str(j) + "_" + str(k)
 
     status = mul_lp.solve()
     if( p.LpStatus[status].lower() == 'optimal' ):
@@ -57,7 +58,7 @@ for i, rew in enumerate(L_Rew):
 with open('b.txt', 'a+') as f:
     if ( max(L_Rew) < 0 ):
         for j in range(num_f_act):
-            f.write( '-1 ' )
+            f.write('-1 ')
     else: 
         for j in range(len(Probabs[ind])):
             f.write(str(Probabs[ind][j]) + ' ')
@@ -69,6 +70,8 @@ with open('b.txt', 'a+') as f:
         # for j in range(len(Probabs[i])):
             # f.write(str(Probabs[i][j]) + ' ')
         # f.write('\n')
+# 
+    # f.write(str(L_Rew) + '\n\n')
 
 prob = p.LpProblem("DOBSS", p.LpMaximize)
 
@@ -112,10 +115,15 @@ with open('a.txt', 'a+') as f:
     f.write( str(max(L_Rew)) + '\n' )
     f.write( str(p.value(prob.objective)) + '\n')
 
-with open('b.txt', 'a+' ) as f:
+with open('b.txt', 'a+') as f:
     for i in range(I):
         f.write(str(sum(z[l][i][j].varValue for l in range(L) for j in range(J))) + ' ' )
-    f.write('\n')      
+    f.write('\n') 
 
-# for v in prob.variables():
-    # print(f"{v.name} = {v.varValue}")
+with open('vars.txt', 'a+') as f:
+    for i in range(I):
+        for j in range(J):
+            f.write(str( round(R[i][j], 2) ) + ',' + str( round(C[i][j], 2) ) + ' ' )
+        f.write('\n')
+    
+    f.write('\n')
