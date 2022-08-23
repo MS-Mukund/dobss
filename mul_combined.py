@@ -1,23 +1,29 @@
 import pulp as p
 import numpy as np
 import random
+import sys
 
 # Multiple LP problems
 
-num_f_types = 1
-l_rew_ubound = 20
-f_rew_ubound = 20    
+LOW = 20
+UPP = 20    
 
-num_f_act = 4
-num_l_act = 4
+J = 3
+I = 4
+
+if len(sys.argv) >= 4:
+    I = int(sys.argv[2])
+    J = int(sys.argv[3])
+
+L = 1
 
 # Payoff matrices
 # Leader
-R = np.array([ [ random.uniform(0, l_rew_ubound) for _ in range(num_f_act) ] for _ in range(num_l_act) ]) 
+R = np.array([[[ random.uniform(0, LOW) for _ in range(J) ] for _ in range(I) ] for l in range(L) ]) 
 # R = np.array([ [ 0.04, 0.16 ], [ 4.79, 1.9 ] ])
 
 # Follower
-C = np.array([ [ random.uniform(0, f_rew_ubound) for _ in range(num_f_act) ] for _ in range(num_l_act) ])
+C = np.array([[[ random.uniform(0, UPP) for _ in range(J) ] for _ in range(I) ] for l in range(L)])
 # C = np.array([ [ 4.81, 0.25 ], [ 3.92, 4.57 ] ])
 
 # Probabilities
@@ -25,26 +31,27 @@ Probabs = [ ]
 Rewards = [ ]
 L_Rew   = [ ]
 
-for j in range(num_f_act):
+l = 0
+for j in range(J):
     mul_lp = p.LpProblem("LP_" + str(j), p.LpMaximize)
-    chanc = np.array([ p.LpVariable("Prob_" + str(j) + "_" + str(i), 0, 1, p.LpContinuous ) for i in range(num_l_act) ])
+    chanc = np.array([ p.LpVariable("Prob_" + str(j) + "_" + str(i), 0, 1, p.LpContinuous ) for i in range(I) ])
 
     # objective 
-    mul_lp += p.lpSum( chanc[i]*R[i][j] for i in range(num_l_act) ), "objective_" + str(j)
+    mul_lp += p.lpSum( chanc[i]*R[l][i][j] for i in range(I) ), "objective_" + str(j)
 
     # constraints
-    mul_lp += p.lpSum( chanc[i] for i in range(num_l_act) ) == 1, "Prob_" + str(j) + "_sum"
-    for k in range(num_l_act):
-        mul_lp += p.lpSum( chanc[ct]*( C[ct][j] ) for ct in range(num_l_act) ) >= p.lpSum( chanc[ct]*( C[ct][k] ) for ct in range(num_l_act) ), "follower_" + str(j) + "_" + str(k)
+    mul_lp += p.lpSum( chanc[i] for i in range(I) ) == 1, "Prob_" + str(j) + "_sum"
+    for k in range(J):
+        mul_lp += p.lpSum( chanc[ct]*( C[l][ct][j] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( C[l][ct][k] ) for ct in range(I) ), "follower_" + str(j) + "_" + str(k)
 
     status = mul_lp.solve()
     if( p.LpStatus[status].lower() == 'optimal' ):
-        Probabs.append( [ float(chanc[i].varValue) for i in range(num_l_act) ] )
-        rew = sum( Probabs[j][i]*C[i][j] for i in range(num_l_act) )
+        Probabs.append( [ float(chanc[i].varValue) for i in range(I) ] )
+        rew = sum( Probabs[j][i]*C[l][i][j] for i in range(I) )
         Rewards.append(rew)
         L_Rew.append( p.value(mul_lp.objective) )
     else:
-        Probabs.append( [ -1 for _ in range(num_l_act) ] )
+        Probabs.append( [ -1 for _ in range(I) ] )
         Rewards.append( -1 )
         L_Rew.append( -1 )    
 
@@ -57,7 +64,7 @@ for i, rew in enumerate(L_Rew):
    
 with open('b.txt', 'a+') as f:
     if ( max(L_Rew) < 0 ):
-        for j in range(num_f_act):
+        for j in range(J):
             f.write('-1 ')
     else: 
         for j in range(len(Probabs[ind])):
@@ -66,7 +73,7 @@ with open('b.txt', 'a+') as f:
     f.write('\n')
 
 # with open('b.txt', 'a+') as f:
-    # for i in range(num_f_act):
+    # for i in range(J):
         # for j in range(len(Probabs[i])):
             # f.write(str(Probabs[i][j]) + ' ')
         # f.write('\n')
@@ -74,10 +81,6 @@ with open('b.txt', 'a+') as f:
     # f.write(str(L_Rew) + '\n\n')
 
 prob = p.LpProblem("DOBSS", p.LpMaximize)
-
-I, J, L = 4, 4, 1
-R_upper, F_upper = 20, 20
-A_upper = F_upper*I + 1
 
 M = 1e7
 # 2 strategies for police 
@@ -99,11 +102,11 @@ for l in range(L):
     prob += p.lpSum( q[l][j] for j in range(J) ) == 1, "q_sum_" + str(l)
 for l in range(L):
     for j in range(J):
-        prob += 0 <= a[l] - p.lpSum( C[i][j]*(p.lpSum(z[l][i][h] for h in range(J))) for i in range(I) ), "left_a_" + str(l) + "_" + str(j)
-        prob += a[l] - p.lpSum( C[i][j]*(p.lpSum(z[l][i][h] for h in range(J))) for i in range(I) ) <= (1 - q[l][j])*M, "right_a_" + str(l) + "_" + str(j)
+        prob += 0 <= a[l] - p.lpSum( C[l][i][j]*(p.lpSum(z[l][i][h] for h in range(J))) for i in range(I) ), "left_a_" + str(l) + "_" + str(j)
+        prob += a[l] - p.lpSum( C[l][i][j]*(p.lpSum(z[l][i][h] for h in range(J))) for i in range(I) ) <= (1 - q[l][j])*M, "right_a_" + str(l) + "_" + str(j)
 
 # objective
-prob += p.lpSum( pr[l]*R[i][j]*z[l][i][j] for l in range(L) for i in range(I) for j in range(J) ), "objective"
+prob += p.lpSum( pr[l]*R[l][i][j]*z[l][i][j] for l in range(L) for i in range(I) for j in range(J) ), "objective"
 
 status = prob.solve()
 # print(f"solution status: {p.LpStatus[status]}")
@@ -123,7 +126,7 @@ with open('b.txt', 'a+') as f:
 with open('vars.txt', 'a+') as f:
     for i in range(I):
         for j in range(J):
-            f.write(str( round(R[i][j], 2) ) + ',' + str( round(C[i][j], 2) ) + ' ' )
+            f.write(str( round(R[l][i][j], 2) ) + ',' + str( round(C[l][i][j], 2) ) + ' ' )
         f.write('\n')
     
     f.write('\n')
