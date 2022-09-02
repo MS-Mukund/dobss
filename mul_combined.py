@@ -13,7 +13,7 @@ I = 2
 if len(sys.argv) >= 4:
     I = int(sys.argv[2])
     J = int(sys.argv[3])
-L = 2
+L = 3
 
 # pr is a list of size l - probabilities of each follower
 pr = [ random.uniform(0, 1) for _ in range(L) ]
@@ -36,35 +36,37 @@ L_Rew   = [ ]
 
 for j1 in range(J):
     for j2 in range(J):
-        mul_lp = p.LpProblem("LP_" + str(j1) + "_" + str(j2), p.LpMaximize)
-        chanc = np.array([ p.LpVariable("Prob_" + str(i), 0, 1, p.LpContinuous ) for i in range(I) ])
+        for j3 in range(J):
+            mul_lp = p.LpProblem("LP_" + str(j1) + "_" + str(j2) + "_" + str(j3), p.LpMaximize)
+            chanc = np.array([ p.LpVariable("Prob_" + str(i), 0, 1, p.LpContinuous ) for i in range(I) ])
 
-        # objective 
-        mul_lp += p.lpSum( chanc[i]*(pr[0]*R[0][i][j1] + pr[1]*R[1][i][j2] ) for i in range(I) ), "objective"
+            # objective 
+            mul_lp += p.lpSum( chanc[i]*(pr[0]*R[0][i][j1] + pr[1]*R[1][i][j2] + pr[2]*R[2][i][j3] ) for i in range(I) ), "objective"
 
-        # constraints
-        mul_lp += p.lpSum( chanc[i] for i in range(I) ) == 1, "probability_sum"
-        for k1 in range(J):
-            for k2 in range(J):
-                mul_lp += p.lpSum( chanc[ct]*( pr[0]*C[0][ct][j1] + pr[1]*C[1][ct][j2] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] + pr[1]*C[1][ct][k2] ) for ct in range(I) ), "follower_" + str(k1) + "_" + str(k2)
-        # for lt in range(L):
+            # constraints
+            mul_lp += p.lpSum( chanc[i] for i in range(I) ) == 1, "probability_sum"
+            for k1 in range(J):
+                for k2 in range(J):
+                    for k3 in range(J):
+                        mul_lp += p.lpSum( chanc[ct]*( pr[0]*C[0][ct][j1] + pr[1]*C[1][ct][j2] + pr[2]*C[2][ct][j3] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] + pr[1]*C[1][ct][k2] + pr[2]*C[2][ct][k3] ) for ct in range(I) ), "follower_" + str(k1) + "_" + str(k2) + "_" + str(k3)
+            # for lt in range(L):
+                # for k1 in range(J):
+                    # mul_lp += p.lpSum( chanc[ct]*C[lt][ct][j1] for ct in range(I) ) >= p.lpSum( chanc[ct]*C[lt][ct][k1] for ct in range(I) )
             # for k1 in range(J):
-                # mul_lp += p.lpSum( chanc[ct]*C[lt][ct][j1] for ct in range(I) ) >= p.lpSum( chanc[ct]*C[lt][ct][k1] for ct in range(I) )
-        # for k1 in range(J):
-        #     # mul_lp += p.lpSum( chanc[ct]*( pr[0]*C[0][ct][j1] + pr[1]*C[1][ct][j2] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] + pr[1]*C[1][ct][k2] ) for ct in range(I) ), "follower_" + str(k1) + "_" + str(k2)
-        #     mul_lp += p.lpSum( chanc[ct]*( C[0][ct][j1] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] ) for ct in range(I) ), "follower_" + str(k1) 
-        #     mul_lp += p.lpSum( chanc[ct]*( C[1][ct][j2] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[1]*C[1][ct][k1] ) for ct in range(I) ), "follower2_" + str(k1)
-            
-        status = mul_lp.solve()
-        if( p.LpStatus[status].lower() == 'optimal' ):
-            Probabs.append( [ float(chanc[i].varValue) for i in range(I) ] )
-            rew = sum( float(chanc[i].varValue)*( pr[0]*C[0][i][j1] + pr[1]*C[1][i][j2] ) for i in range(I) )
-            Rewards.append(rew)
-            L_Rew.append( p.value(mul_lp.objective) )
-        else:
-            Probabs.append( [ -1 for _ in range(I) ] )
-            Rewards.append( -1 )
-            L_Rew.append( -1 ) 
+            #     # mul_lp += p.lpSum( chanc[ct]*( pr[0]*C[0][ct][j1] + pr[1]*C[1][ct][j2] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] + pr[1]*C[1][ct][k2] ) for ct in range(I) ), "follower_" + str(k1) + "_" + str(k2)
+            #     mul_lp += p.lpSum( chanc[ct]*( C[0][ct][j1] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[0]*C[0][ct][k1] ) for ct in range(I) ), "follower_" + str(k1) 
+            #     mul_lp += p.lpSum( chanc[ct]*( C[1][ct][j2] ) for ct in range(I) ) >= p.lpSum( chanc[ct]*( pr[1]*C[1][ct][k1] ) for ct in range(I) ), "follower2_" + str(k1)
+
+            status = mul_lp.solve()
+            if( p.LpStatus[status].lower() == 'optimal' ):
+                Probabs.append( [ float(chanc[i].varValue) for i in range(I) ] )
+                rew = sum( float(chanc[i].varValue)*( pr[0]*C[0][i][j1] + pr[1]*C[1][i][j2] + pr[2]*C[2][i][j3] ) for i in range(I) )
+                Rewards.append(rew)
+                L_Rew.append( p.value(mul_lp.objective) )
+            else:
+                Probabs.append( [ -1 for _ in range(I) ] )
+                Rewards.append( -1 )
+                L_Rew.append( -1 ) 
 
 # for j1 in range(J):
 #     mul_lp = p.LpProblem("LP_" + str(j1), p.LpMaximize)

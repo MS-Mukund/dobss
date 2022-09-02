@@ -24,6 +24,6 @@ for ctl in range(2, 5):
             plt.legend()
 
             # plt.show()
-            plt.savefig('plots/plot_2_' + str(ctl) + '_' + str(ctf) + '.png')
+            plt.savefig('plots/plot_3_' + str(ctl) + '_' + str(ctf) + '.png')
             plt.clf()
             
